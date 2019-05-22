@@ -17,6 +17,7 @@
 package io.helidon.examples.conference.mp;
 
 import java.util.Collections;
+import java.util.Properties;
 
 import javax.annotation.security.RolesAllowed;
 import javax.enterprise.context.RequestScoped;
@@ -24,6 +25,7 @@ import javax.inject.Inject;
 import javax.json.Json;
 import javax.json.JsonBuilderFactory;
 import javax.json.JsonObject;
+import javax.json.JsonObjectBuilder;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.PUT;
@@ -38,8 +40,15 @@ import javax.ws.rs.core.Response;
 import org.eclipse.microprofile.faulttolerance.Fallback;
 import org.eclipse.microprofile.metrics.annotation.Counted;
 import org.eclipse.microprofile.metrics.annotation.Timed;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.glassfish.jersey.server.Uri;
 
+import io.helidon.examples.conference.mp.common.config.AppConfig;
+import io.helidon.examples.conference.mp.common.util.RestUtil;
 import io.helidon.security.Principal;
 import io.helidon.security.SecurityContext;
 import io.helidon.security.annotations.Authenticated;
@@ -73,6 +82,12 @@ public class GreetResource {
 	@Uri("http://localhost:8080/greet")
 	@SecureClient
 	private WebTarget target;
+
+	@Inject
+	GreetMananger greetManager;
+
+	@Inject
+	AppConfig appConfig;
 
 	/**
 	 * Using constructor injection to get a configuration property. By default this
@@ -146,13 +161,22 @@ public class GreetResource {
 		return Response.status(Response.Status.NO_CONTENT).build();
 	}
 
+//	@GET
+//	@Path("/outbound/{name}")
+//	@Fallback(fallbackMethod = "onFailureOutbound")
+//	public JsonObject outbound(@PathParam("name") String name, @Context SecurityContext context) {
+////		return target.path(name).request().accept(MediaType.APPLICATION_JSON_TYPE).get(JsonObject.class);
+////		return target.path(name).request().property(ClientSecurityFeature.PROPERTY_CONTEXT, context)
+////				.get(JsonObject.class);
+//		Response response = target.path(name).request().property(ClientSecurityFeature.PROPERTY_CONTEXT, context).get();
+//		return response.readEntity(JsonObject.class);
+//	}
+
 	@GET
 	@Path("/outbound/{name}")
 	@Fallback(fallbackMethod = "onFailureOutbound")
 	public JsonObject outbound(@PathParam("name") String name, @Context SecurityContext context) {
-//		return target.path(name).request().accept(MediaType.APPLICATION_JSON_TYPE).get(JsonObject.class);
-//		return target.path(name).request().property(ClientSecurityFeature.PROPERTY_CONTEXT, context)
-//				.get(JsonObject.class);
+
 		Response response = target.path(name).request().property(ClientSecurityFeature.PROPERTY_CONTEXT, context).get();
 		return response.readEntity(JsonObject.class);
 	}
@@ -161,9 +185,59 @@ public class GreetResource {
 		return Json.createObjectBuilder().add("Failed", name).build();
 	}
 
+	@GET
+	@Path("/properties")
+	@Produces(MediaType.APPLICATION_JSON)
+	@APIResponses(value = {
+			@APIResponse(responseCode = "404", description = "Missing description", content = @Content(mediaType = "text/plain")),
+			@APIResponse(responseCode = "200", description = "JVM system properties of a particular host.", content = @Content(mediaType = "application/json", schema = @Schema(implementation = Properties.class))) })
+	@Operation(summary = "Get JVM system properties for particular host", description = "Retrieves and returns the JVM system properties from the system "
+			+ "service running on the particular host.")
+	public JsonObject getProperties() {
+
+		JsonObjectBuilder builder = Json.createObjectBuilder();
+
+		System.getProperties().entrySet().stream()
+				.forEach(entry -> builder.add((String) entry.getKey(), (String) entry.getValue()));
+
+		greetManager.update(System.getProperties());
+
+		return builder.build();
+	}
+
+	@GET
+	@Path("/application/properties")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Properties listSystemProperties() {
+
+		return greetManager.getProperties();
+	}
+
 	private JsonObject createResponse(String who) {
+
 		String msg = String.format("%s %s!", greetingProvider.getMessage(), who);
 
 		return JSON.createObjectBuilder().add("message", msg).build();
+	}
+
+	@GET
+	@Path("/clusters")
+	@Produces(MediaType.APPLICATION_JSON)
+	public String listClusters() {
+
+		String compartmentId = appConfig.getDEFAULT_COMPARTMENT_ID();
+
+		// GET with query parameters
+		String uri = appConfig.getENDPOINT_CONTAINERENGINE_DEFAULT() + appConfig.getRESTAPI_LIST_CLUSTERS()
+				+ "?compartmentId=%s";
+		uri = String.format(uri,
+				// Older ocid formats included ":" which must be escaped
+				compartmentId.replace(":", "%3A"));
+
+		String apiKey = (appConfig.getTENANCY_OCID() + "/" + appConfig.getUSER_OCID() + "/"
+				+ appConfig.getFINGERPRINT());
+		String privateKeyFilename = appConfig.getPRIVATE_PEM();
+
+		return RestUtil.RestGet(apiKey, privateKeyFilename, uri);
 	}
 }

@@ -23,6 +23,7 @@ import javax.ws.rs.ApplicationPath;
 import javax.ws.rs.core.Application;
 
 import io.helidon.common.CollectionsHelper;
+import io.helidon.openapi.OpenAPISupport;
 
 /**
  * Simple Application that produces a greeting message.
@@ -33,6 +34,6 @@ public class GreetApplication extends Application {
 
     @Override
     public Set<Class<?>> getClasses() {
-        return CollectionsHelper.setOf(GreetResource.class);
+        return CollectionsHelper.setOf(GreetResource.class, OpenAPISupport.class);
     }
 }
