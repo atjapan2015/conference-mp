@@ -15,7 +15,7 @@
 #
 
 app:
-  greeting: "MP"
+  greeting: "Hello"
   
 tracing:
   service: helidon-mp
@@ -53,8 +53,8 @@ security:
             password: "jillToo"
             roles: ["user"]
 
-default.region: uk-london-1
-endpoint.containerengine.default: https://containerengine.uk-london-1.oraclecloud.com
-# default.region: eu-frankfurt-1
-# endpoint.containerengine.default: https://containerengine.eu-frankfurt-1.oraclecloud.com
+# default.region: uk-london-1
+# endpoint.containerengine.default: https://containerengine.uk-london-1.oraclecloud.com
+default.region: eu-frankfurt-1
+endpoint.containerengine.default: https://containerengine.eu-frankfurt-1.oraclecloud.com
 

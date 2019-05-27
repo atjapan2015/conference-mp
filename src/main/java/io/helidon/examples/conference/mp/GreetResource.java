@@ -42,7 +42,9 @@ import org.eclipse.microprofile.metrics.annotation.Counted;
 import org.eclipse.microprofile.metrics.annotation.Timed;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.ExampleObject;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.parameters.RequestBody;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.glassfish.jersey.server.Uri;
@@ -107,6 +109,8 @@ public class GreetResource {
 	 */
 	@SuppressWarnings("checkstyle:designforextension")
 	@GET
+	@Operation(summary = "Returns a generic greeting", description = "Greets the user generically")
+	@APIResponse(description = "Simple JSON containing the greeting", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GreetingMessage.class)))
 	@Produces(MediaType.APPLICATION_JSON)
 	@Timed
 	@Counted(name = "greet.default.counter", monotonic = true, absolute = true)
@@ -125,6 +129,8 @@ public class GreetResource {
 	@SuppressWarnings("checkstyle:designforextension")
 	@Path("/{name}")
 	@GET
+	@Operation(summary = "Returns a personalized greeting")
+	@APIResponse(description = "Simple JSON containing the greeting", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GreetingMessage.class)))
 	@Produces(MediaType.APPLICATION_JSON)
 	@Timed
 	@Counted(name = "greet.message.counter", monotonic = true, absolute = true)
@@ -143,6 +149,8 @@ public class GreetResource {
 	@SuppressWarnings("checkstyle:designforextension")
 	@Path("/greeting")
 	@PUT
+	@Operation(summary = "Set the greeting prefix", description = "Permits the client to set the prefix part of the greeting (\"Hello\")")
+	@RequestBody(name = "greeting", description = "Conveys the new greeting prefix to use in building greetings", content = @Content(mediaType = "application/json", schema = @Schema(implementation = GreetingMessage.class), examples = @ExampleObject(name = "greeting", summary = "Example greeting message to update", value = "New greeting message")))
 	@Consumes(MediaType.APPLICATION_JSON)
 	@Produces(MediaType.APPLICATION_JSON)
 	@RolesAllowed("admin")
@@ -213,13 +221,6 @@ public class GreetResource {
 		return greetManager.getProperties();
 	}
 
-	private JsonObject createResponse(String who) {
-
-		String msg = String.format("%s %s!", greetingProvider.getMessage(), who);
-
-		return JSON.createObjectBuilder().add("message", msg).build();
-	}
-
 	@GET
 	@Path("/clusters")
 	@Produces(MediaType.APPLICATION_JSON)
@@ -239,5 +240,38 @@ public class GreetResource {
 		String privateKeyFilename = appConfig.getPRIVATE_PEM();
 
 		return RestUtil.RestGet(apiKey, privateKeyFilename, uri);
+	}
+
+	private JsonObject createResponse(String who) {
+
+		String msg = String.format("%s %s!", greetingProvider.getMessage(), who);
+
+		return JSON.createObjectBuilder().add("message", msg).build();
+	}
+
+	/**
+	 * POJO defining the greeting message content exchanged with clients.
+	 */
+	public static class GreetingMessage {
+
+		private String message;
+
+		/**
+		 * Gets the message value.
+		 *
+		 * @return message value
+		 */
+		public String getMessage() {
+			return message;
+		}
+
+		/**
+		 * Sets the message value.
+		 *
+		 * @param message message value to set
+		 */
+		public void setMessage(String message) {
+			this.message = message;
+		}
 	}
 }
